@@ -37,22 +37,23 @@ def quote(symbol):
         last=next((q for q in old.get('quotes',[]) if q['symbol']==symbol),{'symbol':symbol,'sessions':[],'points':[]})
         return {**last,'error':str(e),'stale':True}
 def classify(symbol,title,url,publisher,at,source_url=''):
-    spec=bool(re.search(r'rumou?r|speculat|could|may |might|reportedly|sources say|in talks|expected|forecast|prediction|price target|analyst|should you|rating|stock to buy|upside',title,re.I))
+    spec=bool(re.search(r'rumou?r|speculat|could|may |might|reportedly|sources say|in talks|prediction|price target|analyst|should you|rating|stock to buy|upside|upgrade|downgrade|buy right now|better buy|buy now|buy the dip|why i|i think|will be|worth by|next\?',title,re.I))
     official=bool(re.match(r'https?://([a-z0-9-]+\.)*(nvidia\.com|amd\.com|intel\.com|micron\.com|qualcomm\.com|direxion\.com|sec\.gov)(/|$)',source_url,re.I))
     category='Guidance' if re.search(r'guidance|outlook|forecast',title,re.I) else 'Earnings' if re.search(r'earning|quarter|results|revenue|profit',title,re.I) else 'Industry' if re.search(r'launch|announc|chip|export|tariff|fab|partnership',title,re.I) else 'Market news'
     impact='High' if re.search(r'guidance|earning|export|ban|tariff|acquisition|plunge|surge|results',title,re.I) else 'Medium' if re.search(r'launch|partnership|chip|revenue',title,re.I) else 'Low'
     affected=[s for s in SYMBOLS if s==symbol or re.search(r'\b'+s+r'\b',title,re.I)]
     if symbol!='SOXL' and 'SOXL' not in affected:affected.append('SOXL')
     why={'Guidance':'Forward expectations can reprice future revenue and margins.','Earnings':'Results can change expectations for demand, profitability and valuation.','Industry':'Supply, policy and product developments can affect semiconductor demand and competition.','Market news':'Market positioning and sentiment can influence near-term semiconductor prices.'}[category]
-    return {'id':symbol+':'+url,'at':at,'symbol':symbol,'title':title,'url':url,'source':publisher,'sourceUrl':source_url,'status':'Speculation' if spec else 'Confirmed' if official else 'Reported','category':category,'impact':impact,'why':why,'affected':affected}
+    return {'id':symbol+':'+url,'at':at,'symbol':symbol,'title':title,'url':url,'source':publisher,'sourceUrl':source_url,'status':'Confirmed' if official else 'Speculation' if spec else 'Reported','category':category,'impact':impact,'why':why,'affected':affected}
 def news(symbol):
     try:
         try:
-            root=ET.fromstring(get('https://news.google.com/rss/search?q='+symbol+'&hl=en-US&gl=US&ceid=US:en'));items=root.findall('./channel/item')[:14]
+            root=ET.fromstring(get('https://news.google.com/rss/search?q='+urllib.parse.quote('Micron stock' if symbol=='MU' else symbol)+'&hl=en-US&gl=US&ceid=US:en'));items=root.findall('./channel/item')[:14]
             if not items:raise ValueError('No RSS headlines')
             result=[]
             for n in items:
                 title=n.findtext('title','');url=n.findtext('link','');source=n.find('source');at=int(parsedate_to_datetime(n.findtext('pubDate')).timestamp()*1000)
+                if symbol=='MU' and not re.search(r'Micron|\bMU stock\b|NASDAQ:MU',title,re.I):continue
                 if title and url:result.append(classify(symbol,title,url,source.text if source is not None else 'Google News',at,source.get('url','') if source is not None else ''))
             return result
         except Exception:
@@ -64,7 +65,7 @@ def news(symbol):
 with ThreadPoolExecutor(max_workers=12) as pool:
     qs=list(pool.map(quote,SYMBOLS));ns=list(pool.map(news,SYMBOLS))
 checked=int(time.time()*1000);cutoff=checked-30*86400000
-merged={e['id']:e for e in old.get('events',[]) if e.get('title') and e.get('at',0)>=cutoff}
+merged={e['id']:e for e in old.get('events',[]) if e.get('title') and e.get('at',0)>=cutoff and (e.get('symbol')!='MU' or re.search(r'Micron|\bMU stock\b|NASDAQ:MU',e['title'],re.I))}
 for batch in ns:
     if isinstance(batch,list):
         for e in batch:

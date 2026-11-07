@@ -2,7 +2,9 @@
 
 An English, mobile-friendly semiconductor market dashboard tracking **SOXL, NVDA, AMD, INTC, MU and QCOM**.
 
-[Open the live dashboard](https://semiconductor-pulse-mou.alexandermou2000.chatgpt.site)
+[Open the GitHub Pages dashboard](https://alexandermou.github.io/semiconductor-pulse/)
+
+[Original Sites version](https://semiconductor-pulse-mou.alexandermou2000.chatgpt.site)
 
 ## Features
 
@@ -45,6 +47,12 @@ Apply the existing migration once to a new local database. Do not replay an alre
 
 ## Hosting
 
-The running application is hosted on **Sites**, not GitHub Pages. Its server-side feed retrieval and D1 history require a Worker backend. This repository is the source-code copy; pushing to GitHub does not automatically deploy changes to the existing Site. The background collection task is configured separately and is not recreated by cloning the repository.
+The public GitHub Pages version is served from **https://alexandermou.github.io/semiconductor-pulse/**. It uses the prebuilt browser assets in `docs/`. The `.github/workflows/pages.yml` workflow collects public quotes and news and publishes a Pages artifact on pushes, manual runs and a five-minute target schedule. GitHub scheduling and deployment can be delayed. The browser checks the latest published JSON every minute; this is separate from provider quote timestamps and the data collection schedule.
 
-No credentials, runtime databases, browser sessions, dependencies or generated build output are included.
+`pages/collect.py` uses Python standard libraries and no API keys. It retains provider errors, last-known values and timestamps when sources fail, merges previous published headlines, and carries forward the latest 500 historical observations for up to 30 days. Historical continuity depends on access to the previous published artifact. No private Sites credentials or API keys are embedded in the public page.
+
+`pages/Dashboard.tsx` is the Pages frontend, and `pages/entry.tsx` is its entrypoint. To regenerate `docs/app.js`, install the project dependencies and `esbuild`, then run `node pages/build.mjs`. The workflow publishes the checked-in compiled assets; frontend edits require rebuilding those assets. To refresh a local snapshot, run `python3 pages/collect.py`.
+
+The original server-backed app remains hosted on Sites, using Cloudflare Workers and D1. GitHub Pages is a separate static deployment and does not change the existing Sites database or its background task. Neither deployment executes trading orders.
+
+No credentials, runtime databases, browser sessions or installed dependencies are included in this repository.
